@@ -20,16 +20,16 @@ REFRESH_TOKEN = 'TG-685eefa4befee4000139f1cc-162089212'
 LIMITE_PERGUNTAS = 10
 
 respostas_automaticas = [
-    "Olá, tudo bem? Qual o modelo do seu carro e o ano? Precisa de mais alguma peça?",
-    "Boa tarde! Poderia informar o ano e modelo do seu carro? Está procurando mais peças também?",
-    "Olá! Me diga por favor o modelo e ano do veículo. Posso ajudar com outras peças também?",
-    "Oi! Qual o modelo e o ano do seu carro? Precisa de mais alguma coisa além disso?",
-    "Se possível, envie o ano e modelo do carro. Tem interesse em mais peças?",
-    "Olá! Qual o ano e modelo do seu carro? Estou à disposição para mais peças também.",
-    "Bom dia! Me diga o modelo e o ano do carro. Procurando mais alguma peça?",
-    "Oi! Qual o ano do seu carro e modelo? Se precisar de mais peças, posso ajudar.",
-    "Olá, informe o modelo e ano do veículo. Está atrás de mais alguma peça?",
-    "Me diga o modelo e ano do carro. Aproveito para verificar outras peças que precise."
+    "Olá, tudo bem? Qual o modelo do seu carro e o ano? Precisa de mais alguma peça? Att Assistente Sportcar",
+    "Olá, como está?! Poderia informar o ano e modelo do seu carro? Está procurando mais peças também? Att Assistente Sportcar",
+    "Olá! Me diga por favor o modelo e ano do veículo. Posso ajudar com outras peças também? Att Assistente Sportcar",
+    "Olá, como vai? Qual o modelo e o ano do seu carro? Precisa de mais alguma coisa além disso? Att Assistente Sportcar",
+    "Se possível, envie o ano e modelo do carro. Tem interesse em mais peças? Att Assistente Sportcar",
+    "Olá! Qual o ano e modelo do seu carro? Estou à disposição para mais peças também. Att Assistente Sportcar",
+    "Olá, tudo bem? Me diga o modelo e o ano do carro. Procurando mais alguma peça?Att Assistente Sportcar",
+    "Oi! Qual o ano do seu carro e modelo? Se precisar de mais peças, posso ajudar. Att Assistente Sportcar",
+    "Olá, informe o modelo e ano do veículo. Está atrás de mais alguma peça? Att Assistente Sportcar",
+    "Me diga o modelo e ano do carro. Aproveito para verificar outras peças que precise.Att Assistente Sportcar"
 ]
 
 def obter_access_token():
