@@ -1,0 +1,8 @@
+services:
+  - type: worker
+    name: resposta-mercado-livre
+    env: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: python resposta_automatica.py
+    schedule: "*/5 * * * *"
