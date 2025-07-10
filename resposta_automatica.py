@@ -66,7 +66,7 @@ def buscar_perguntas_na_faixa(token):
             logging.info(f"⏭ Pulando pergunta duplicada do usuário {from_id} no item {item_id}")
             continue
 
-        if 15 <= hora_brasilia <= 23:
+        if 17 <= hora_brasilia <= 23:
             perguntas_filtradas.append(p)
 
     return perguntas_filtradas
