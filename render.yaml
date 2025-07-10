@@ -1,0 +1,11 @@
+services: []
+jobs:
+  - name: resposta-automatica-ml
+    type: cron
+    schedule: "*/5 * * * *"  # executa a cada 5 minutos
+    envVars:
+      - key: PYTHONUNBUFFERED
+        value: "1"
+    runtime: python
+    buildCommand: ""
+    startCommand: "python resposta_automatica.py"
