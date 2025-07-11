@@ -5,6 +5,7 @@ import datetime
 from dateutil import parser
 import logging
 from dotenv import load_dotenv
+from zoneinfo import ZoneInfo
 
 # === CARREGAR VARIÁVEIS DE AMBIENTE ===
 load_dotenv()
@@ -61,7 +62,7 @@ def buscar_perguntas_na_faixa(token):
     perguntas_filtradas = []
 
     for p in perguntas:
-        data_criacao = parser.isoparse(p['date_created']).astimezone()
+        data_criacao = parser.isoparse(p['date_created']).astimezone(ZoneInfo("America/Sao_Paulo"))
         hora_brasilia = data_criacao.hour
         dia_semana = data_criacao.weekday()  # 0 = segunda, 6 = domingo
 
