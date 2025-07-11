@@ -4,8 +4,8 @@ import random
 import datetime
 from dateutil import parser
 import logging
-from dotenv import load_dotenv
 from zoneinfo import ZoneInfo
+from dotenv import load_dotenv
 
 # === CARREGAR VARIÁVEIS DE AMBIENTE ===
 load_dotenv()
@@ -80,8 +80,21 @@ def buscar_perguntas_na_faixa(token):
             logging.info(f"⏭ Pulando pergunta duplicada do usuário {from_id} no item {item_id}")
             continue
 
+        # === NOVA LÓGICA CORRIGIDA ===
         if horario_permitido(hora_brasilia, dia_semana):
             perguntas_filtradas.append(p)
+
+        else:
+            if dia_semana < 5 and not ja_perguntou and 8 <= hora_brasilia < 17:
+                tempo_atual = datetime.datetime.now(ZoneInfo("America/Sao_Paulo"))
+                tempo_pergunta = data_criacao
+                diferenca_minutos = (tempo_atual - tempo_pergunta).total_seconds() / 60
+
+                logging.info(f"⏳ Pergunta feita fora do horário padrão há {int(diferenca_minutos)} min")
+
+                if diferenca_minutos > 30:
+                    logging.info(f"⌛ Permitindo resposta atrasada por ser primeira pergunta entre 8h e 17h (+30min)")
+                    perguntas_filtradas.append(p)
 
     return perguntas_filtradas
 
@@ -91,7 +104,6 @@ def enviar_resposta(token, pergunta_id, texto):
     r = requests.post("https://api.mercadolibre.com/answers", headers=headers, json=payload)
     return r.status_code, r.text
 
-# === EXECUÇÃO ÚNICA ===
 def main():
     logging.info("🚀 Iniciando execução única de perguntas...")
     try:
