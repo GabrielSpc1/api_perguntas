@@ -1,4 +1,3 @@
-
 import os
 import requests
 import random
@@ -14,8 +13,7 @@ CLIENT_SECRET = os.getenv('CLIENT_SECRET')
 REFRESH_TOKEN = os.getenv('REFRESH_TOKEN')
 LIMITE_PERGUNTAS = 10
 
-# === CONFIGURAÇÃO DO LOG ===
-log_path = Path(__file__).resolve().parent / "log_respostas.txt"
+# === CONFIGURAÇÃO DO LOG VIA STDOUT ===
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
