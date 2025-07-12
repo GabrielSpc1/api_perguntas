@@ -6,6 +6,8 @@ from dateutil import parser
 import logging
 from zoneinfo import ZoneInfo
 from dotenv import load_dotenv
+from upload_github import upload_para_github
+
 
 # === CARREGAR VARIÁVEIS DE AMBIENTE ===
 load_dotenv()
@@ -129,8 +131,26 @@ def main():
                 status, retorno = enviar_resposta(token, pergunta_id, resposta)
                 if status in [200, 201]:
                     logging.info(f"✅ Resposta enviada com sucesso para pergunta {pergunta_id}")
+                
+                    entrada = {
+                        "pergunta": texto_pergunta,
+                        "resposta_enviada": resposta,
+                        "editada_pelo_moderador": False,
+                        "data_resposta": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    }
+                
+                    with open("dataset_meli.jsonl", "a", encoding="utf-8") as f:
+                        f.write(json.dumps(entrada, ensure_ascii=False) + "\n")
+                
+                    try:
+                        upload_para_github()
+                        logging.info("🚀 Arquivo atualizado no GitHub com sucesso!")
+                    except Exception as e:
+                        logging.warning(f"⚠️ Erro ao atualizar no GitHub: {e}")
+                
                 else:
                     logging.error(f"❌ Erro ao enviar resposta {pergunta_id}: {status} - {retorno}")
+
 
     except Exception as e:
         logging.exception("❌ Erro inesperado durante execução do script")
