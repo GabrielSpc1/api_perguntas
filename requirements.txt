@@ -1,4 +1,5 @@
 requests
 python-dateutil
 python-dotenv
-PyGithub==1.59.1
+PyGithub
+
