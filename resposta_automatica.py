@@ -6,7 +6,7 @@ from dateutil import parser
 import logging
 from zoneinfo import ZoneInfo
 from dotenv import load_dotenv
-from upload_github import upload_para_github
+from upload_github_v2 import upload_para_github
 
 
 # === CARREGAR VARIÁVEIS DE AMBIENTE ===
