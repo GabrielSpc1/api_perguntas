@@ -1,12 +1,12 @@
 import os
 import requests
 import random
-import datetime
 from dateutil import parser
 import logging
 from zoneinfo import ZoneInfo
 from dotenv import load_dotenv
 from upload_github_v2 import upload_para_github
+from datetime import datetime
 
 
 # === CARREGAR VARIÁVEIS DE AMBIENTE ===
