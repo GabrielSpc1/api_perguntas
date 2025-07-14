@@ -1,4 +1,5 @@
 services: []
+
 jobs:
   - name: resposta-automatica-ml
     type: cron
@@ -6,3 +7,9 @@ jobs:
     runtime: python
     buildCommand: ""
     startCommand: python resposta_automatica.py
+
+  - name: extrair-metadados-ml
+    type: background
+    runtime: python
+    buildCommand: ""
+    startCommand: python extrair_metadados_meli.py
