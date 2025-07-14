@@ -1,4 +1,3 @@
-
 services:
   - type: web
     name: extracao-metadados-api
@@ -14,3 +13,12 @@ services:
         sync: false
       - key: GITHUB_TOKEN
         sync: false
+
+jobs:
+  - name: resposta-automatica-ml
+    type: cron
+    schedule: "*/5 * * * *"
+    runtime: python
+    buildCommand: ""
+    startCommand: python resposta_automatica.py
+
