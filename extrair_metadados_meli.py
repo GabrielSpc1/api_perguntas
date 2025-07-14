@@ -75,16 +75,14 @@ def upload_github(nome_arquivo_local, nome_arquivo_remoto):
             f"update {nome_arquivo_remoto} {datetime.now().isoformat()}",
             conteudo_base64,
             arq.sha,
-            branch="main",
-            encoding="base64"
+            branch="main"
         )
     except:
         repo.create_file(
             nome_arquivo_remoto,
             f"create {nome_arquivo_remoto} {datetime.now().isoformat()}",
             conteudo_base64,
-            branch="main",
-            encoding="base64"
+            branch="main"
         )
 
 def executar_extracao():
