@@ -64,16 +64,15 @@ def upload_github(nome_arquivo_local, nome_arquivo_remoto):
     g = Github(GITHUB_TOKEN)
     repo = g.get_repo(REPO_NAME)
 
-    with open(nome_arquivo_local, "rb") as f:
-        conteudo = f.read()
-    conteudo_base64 = base64.b64encode(conteudo).decode("utf-8")
+    with open(nome_arquivo_local, "r", encoding="utf-8") as f:
+        conteudo_texto = f.read()
 
     try:
         arq = repo.get_contents(nome_arquivo_remoto, ref="main")
         repo.update_file(
             nome_arquivo_remoto,
             f"update {nome_arquivo_remoto} {datetime.now().isoformat()}",
-            conteudo_base64,
+            conteudo_texto,
             arq.sha,
             branch="main"
         )
@@ -81,7 +80,7 @@ def upload_github(nome_arquivo_local, nome_arquivo_remoto):
         repo.create_file(
             nome_arquivo_remoto,
             f"create {nome_arquivo_remoto} {datetime.now().isoformat()}",
-            conteudo_base64,
+            conteudo_texto,
             branch="main"
         )
 
