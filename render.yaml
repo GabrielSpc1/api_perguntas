@@ -1,15 +1,16 @@
-services: []
 
-jobs:
-  - name: resposta-automatica-ml
-    type: cron
-    schedule: "*/5 * * * *"
+services:
+  - type: web
+    name: extracao-metadados-api
     runtime: python
     buildCommand: ""
-    startCommand: python resposta_automatica.py
-
-  - name: extrair-metadados-ml
-    type: background
-    runtime: python
-    buildCommand: ""
-    startCommand: python extrair_metadados_meli.py
+    startCommand: uvicorn main:app --host 0.0.0.0 --port 10000
+    envVars:
+      - key: CLIENT_ID
+        sync: false
+      - key: CLIENT_SECRET
+        sync: false
+      - key: REFRESH_TOKEN
+        sync: false
+      - key: GITHUB_TOKEN
+        sync: false
