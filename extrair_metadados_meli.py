@@ -31,8 +31,8 @@ def buscar_user_id(token):
     response.raise_for_status()
     return response.json()["id"]
 
-def buscar_anuncios_por_status(user_id, token, status):
-    url_base = f"https://api.mercadolibre.com/users/{user_id}/items/search?status={status}&limit=50"
+def buscar_todos_anuncios(user_id, token):
+    url_base = f"https://api.mercadolibre.com/users/{user_id}/items/all?limit=50"
     headers = {"Authorization": f"Bearer {token}"}
     anuncios = []
     offset = 0
@@ -50,15 +50,8 @@ def buscar_anuncios_por_status(user_id, token, status):
         if offset >= dados.get("paging", {}).get("total", 0):
             break
 
-    print(f"[INFO] Total de anúncios {status}: {len(anuncios)}")
+    print(f"[INFO] Total de anúncios coletados: {len(anuncios)}")
     return anuncios
-
-def buscar_todos_anuncios(user_id, token):
-    todos_ids = []
-    for status in ["active", "paused", "closed"]:
-        ids = buscar_anuncios_por_status(user_id, token, status)
-        todos_ids.extend(ids)
-    return todos_ids
 
 def detalhar_anuncio(item_id, token):
     url = f"https://api.mercadolibre.com/items/{item_id}"
