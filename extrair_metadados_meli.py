@@ -1,6 +1,7 @@
 import os
 import requests
 import json
+import time
 from datetime import datetime
 from github import Github
 
@@ -28,36 +29,49 @@ def buscar_user_id(token):
     url = "https://api.mercadolibre.com/users/me"
     headers = {"Authorization": f"Bearer {token}"}
     response = requests.get(url, headers=headers)
-    response.raise_for_status()
     return response.json()["id"]
 
-def buscar_todos_anuncios(user_id, token):
-    url_base = f"https://api.mercadolibre.com/users/{user_id}/items/all?limit=50"
+def buscar_todos_os_ids(user_id, token, status):
+    print(f"[INFO] Buscando anúncios com status: {status}")
     headers = {"Authorization": f"Bearer {token}"}
-    anuncios = []
-    offset = 0
+    base_url = f"https://api.mercadolibre.com/users/{user_id}/items/search"
+    params = {
+        "status": status,
+        "search_type": "scan",
+        "limit": 100
+    }
+
+    all_ids = []
+    scroll_id = None
 
     while True:
-        url = f"{url_base}&offset={offset}"
-        response = requests.get(url, headers=headers)
-        response.raise_for_status()
-        dados = response.json()
-        resultados = dados.get("results", [])
-        if not resultados:
-            break
-        anuncios.extend(resultados)
-        offset += 50
-        if offset >= dados.get("paging", {}).get("total", 0):
+        if scroll_id:
+            params["scroll_id"] = scroll_id
+
+        response = requests.get(base_url, headers=headers, params=params)
+        if response.status_code != 200:
+            raise Exception(f"[ERRO] {response.status_code}: {response.text}")
+
+        result = response.json()
+        ids = result.get("results", [])
+        scroll_id = result.get("scroll_id")
+
+        if not ids:
             break
 
-    print(f"[INFO] Total de anúncios coletados: {len(anuncios)}")
-    return anuncios
+        all_ids.extend(ids)
+        print(f"  → {len(all_ids)} coletados até agora ({status})")
+        time.sleep(0.1)
+
+    return all_ids
 
 def detalhar_anuncio(item_id, token):
     url = f"https://api.mercadolibre.com/items/{item_id}"
     headers = {"Authorization": f"Bearer {token}"}
     response = requests.get(url, headers=headers)
-    response.raise_for_status()
+    if response.status_code != 200:
+        print(f"[AVISO] Falha ao obter detalhes do {item_id}: {response.status_code}")
+        return None
     return response.json()
 
 def salvar_jsonl(dados, nome_arquivo):
@@ -93,9 +107,29 @@ def upload_github(nome_arquivo_local, nome_arquivo_remoto):
 def executar_extracao():
     access_token = renovar_token()
     user_id = buscar_user_id(access_token)
-    ids = buscar_todos_anuncios(user_id, access_token)
-    detalhes = [detalhar_anuncio(anuncio_id, access_token) for anuncio_id in ids]
+
+    todos_ids = []
+    for status in ["active", "paused", "closed"]:
+        ids = buscar_todos_os_ids(user_id, access_token, status)
+        todos_ids.extend(ids)
+
+    print(f"[INFO] Total geral de anúncios coletados (ativos, pausados, finalizados): {len(set(todos_ids))}")
+
+    detalhes = []
+    for idx, item_id in enumerate(todos_ids):
+        detalhe = detalhar_anuncio(item_id, access_token)
+        if detalhe:
+            detalhes.append(detalhe)
+        if idx % 50 == 0:
+            print(f"  → {idx} detalhados...")
+        time.sleep(0.1)
+
     nome_arquivo = "produtos_meli_metadados.jsonl"
     salvar_jsonl(detalhes, nome_arquivo)
     upload_github(nome_arquivo, ARQUIVO_GITHUB)
+
+    print(f"[SUCESSO] {len(detalhes)} anúncios salvos em {nome_arquivo}")
+
+# Se desejar rodar localmente:
+# executar_extracao()
 
