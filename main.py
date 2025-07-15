@@ -1,5 +1,7 @@
 from fastapi import FastAPI
-from extrair_metadados_meli import executar_extracao_por_status
+from extrair_ativos import executar_extracao_ativos
+from extrair_pausados import executar_extracao_pausados
+from extrair_finalizados import executar_extracao_finalizados
 from extrair_perguntas_respondidas import executar_extracao_perguntas
 
 app = FastAPI()
@@ -8,34 +10,34 @@ app = FastAPI()
 def raiz():
     return {"mensagem": "API de extração Mercado Livre ativa."}
 
-@app.get("/extrair-metadados-ativos")
-def extrair_ativos():
+@app.get("/extrair-ativos")
+def ativos():
     try:
-        executar_extracao_por_status("active", "produtos_meli_ativos.jsonl", "produtos_meli_ativos.jsonl")
-        return {"status": "sucesso", "mensagem": "Ativos extraídos e enviados para o GitHub"}
+        executar_extracao_ativos()
+        return {"status": "sucesso", "mensagem": "Ativos extraídos com sucesso"}
     except Exception as e:
         return {"status": "erro", "mensagem": str(e)}
 
-@app.get("/extrair-metadados-pausados")
-def extrair_pausados():
+@app.get("/extrair-pausados")
+def pausados():
     try:
-        executar_extracao_por_status("paused", "produtos_meli_pausados.jsonl", "produtos_meli_pausados.jsonl")
-        return {"status": "sucesso", "mensagem": "Pausados extraídos e enviados para o GitHub"}
+        executar_extracao_pausados()
+        return {"status": "sucesso", "mensagem": "Pausados extraídos com sucesso"}
     except Exception as e:
         return {"status": "erro", "mensagem": str(e)}
 
-@app.get("/extrair-metadados-finalizados")
-def extrair_finalizados():
+@app.get("/extrair-finalizados")
+def finalizados():
     try:
-        executar_extracao_por_status("closed", "produtos_meli_finalizados.jsonl", "produtos_meli_finalizados.jsonl")
-        return {"status": "sucesso", "mensagem": "Finalizados extraídos e enviados para o GitHub"}
+        executar_extracao_finalizados()
+        return {"status": "sucesso", "mensagem": "Finalizados extraídos com sucesso"}
     except Exception as e:
         return {"status": "erro", "mensagem": str(e)}
 
 @app.get("/extrair-perguntas-respondidas")
-def extrair_perguntas():
+def perguntas():
     try:
         executar_extracao_perguntas()
-        return {"status": "sucesso", "mensagem": "Perguntas respondidas extraídas e enviadas para o GitHub"}
+        return {"status": "sucesso", "mensagem": "Perguntas extraídas com sucesso"}
     except Exception as e:
         return {"status": "erro", "mensagem": str(e)}
