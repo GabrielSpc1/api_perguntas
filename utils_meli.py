@@ -40,6 +40,8 @@ def buscar_anuncios(user_id, token, status):
         data = response.json()
         anuncios.extend(data.get("results", []))
         scroll_id = data.get("scroll_id")
+        print(f"[INFO] Coletados até agora: {len(anuncios)} anúncios ativos...")
+        
         if not data.get("results"):
             break
 
