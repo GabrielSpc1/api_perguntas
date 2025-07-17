@@ -1,108 +1,76 @@
-import os
-import json
-import time
-from datetime import datetime
 import requests
-from utils_meli import renovar_token, buscar_user_id, salvar_jsonl, upload_github
+import time
+import json
+from datetime import datetime
+from helpers import salvar_dados, salvar_lock_status, carregar_lock_status
 
-def executar_extracao_ativos():
-    # Carrega estado anterior (se existir)
-    estado_path = "lock_status.json"
-    estado = {}
-    if os.path.exists(estado_path):
-        with open(estado_path, "r") as f:
-            estado = json.load(f)
-        if estado.get("em_execucao"):
-            print("🚫 Já em execução. Abortando nova tentativa.")
-            return
+ACCESS_TOKEN = "SEU_ACCESS_TOKEN"
+SCROLL_URL = "https://api.mercadolibre.com/users/me/search?search_type=scan"
+DETAIL_URL_TEMPLATE = "https://api.mercadolibre.com/items?ids={ids}"
+LIMITE_TOTAL = 30000
 
-    # Atualiza estado para em execução
-    estado = {
-        "em_execucao": True,
-        "scroll_id": estado.get("scroll_id"),
-        "coletados": estado.get("coletados", 0),
-        "timestamp_inicio": datetime.now().isoformat()
-    }
-    with open(estado_path, "w") as f:
-        json.dump(estado, f)
 
-    print(f"🟢 Início da extração em {estado['timestamp_inicio']}")
+def extrair_anuncios_ativos():
+    print(f"🟢 Início da extração em {datetime.now().isoformat()}")
+    lock_status = carregar_lock_status()
 
-    try:
-        token = renovar_token()
-        user_id = buscar_user_id(token)
-        headers = {"Authorization": f"Bearer {token}"}
+    if lock_status.get("em_execucao"):
+        print("🚫 Já em execução. Abortando nova tentativa.")
+        return
 
-        limit = 100
-        scroll_id = estado.get("scroll_id")
-        coletados = estado.get("coletados", 0)
-        all_ids = []
+    salvar_lock_status(scroll_id=None, total_coletado=0, timestamp=datetime.now().isoformat(), em_execucao=True)
 
-        print("🚀 Iniciando extração com SCAN + scroll_id...")
+    headers = {"Authorization": f"Bearer {ACCESS_TOKEN}"}
+    response = requests.get(SCROLL_URL, headers=headers)
+    response.raise_for_status()
+    data = response.json()
 
-        while True:
-            params = {
-                "status": "active",
-                "search_type": "scan",
-                "limit": limit
-            }
-            if scroll_id:
-                params["scroll_id"] = scroll_id
+    scroll_id = data.get("scroll_id")
+    results = data.get("results", [])
+    anuncios_coletados = []
+    coletados = 0
 
-            url = f"https://api.mercadolibre.com/users/{user_id}/items/search"
-            response = requests.get(url, headers=headers, params=params)
-            if response.status_code != 200:
-                print(f"❌ Erro {response.status_code}: {response.text}")
-                break
+    print("🚀 Iniciando extração com SCAN + scroll_id...")
 
-            data = response.json()
-            ids = data.get("results", [])
-            scroll_id = data.get("scroll_id")
+    while True:
+        if not results:
+            break
 
-            if not ids:
-                break
+        ids_lote = ",".join(results)
+        detalhes_url = DETAIL_URL_TEMPLATE.format(ids=ids_lote)
+        detalhes_resp = requests.get(detalhes_url, headers=headers)
 
-            all_ids.extend(ids)
-            coletados += len(ids)
+        if detalhes_resp.status_code != 200:
+            print(f"⚠️ Erro ao buscar detalhes: {detalhes_resp.text}")
+            break
 
-            print(f"📦 Coletados até agora: {coletados} anúncios ativos...")
+        detalhes = detalhes_resp.json()
 
-            # Atualiza checkpoint a cada 10.000
-            if coletados % 10000 < limit:
-                estado.update({
-                    "scroll_id": scroll_id,
-                    "coletados": coletados,
-                    "timestamp_checkpoint": datetime.now().isoformat()
-                })
-                with open(estado_path, "w") as f:
-                    json.dump(estado, f)
+        for item in detalhes:
+            anuncio_detalhado = item.get("body", {})
+            if anuncio_detalhado:
+                anuncios_coletados.append(anuncio_detalhado)
+                coletados += 1
 
-            time.sleep(0.1)
+                if coletados % 100 == 0:
+                    print(f"📦 Coletados até agora: {coletados} anúncios ativos...")
 
-        print(f"✅ Coleta finalizada com {coletados} IDs únicos.")
+                if coletados >= LIMITE_TOTAL:
+                    print(f"🚫 Limite de {LIMITE_TOTAL} atingido. Encerrando extração.")
+                    salvar_dados(anuncios_coletados, "ativos_parciais_completos.json")
+                    salvar_lock_status(scroll_id, coletados, datetime.now().isoformat(), em_execucao=False)
+                    return
 
-        # Detalhamento
-        detalhes = []
-        for i, item_id in enumerate(all_ids):
-            try:
-                r = requests.get(f"https://api.mercadolibre.com/items/{item_id}", headers=headers)
-                r.raise_for_status()
-                detalhes.append(r.json())
-                if i % 50 == 0:
-                    print(f"🔍 Detalhado {i}/{len(all_ids)} anúncios.")
-                time.sleep(0.2)
-            except Exception as e:
-                print(f"❌ Erro ao detalhar {item_id}: {e}")
+        time.sleep(0.5)
+        response = requests.get(f"{SCROLL_URL}&scroll_id={scroll_id}", headers=headers)
+        if response.status_code != 200:
+            print(f"⚠️ Erro no scroll: {response.text}")
+            break
 
-        nome_arquivo = f"ativos_{datetime.now().strftime('%Y%m%d_%H%M%S')}.jsonl"
-        salvar_jsonl(detalhes, nome_arquivo)
-        upload_github(nome_arquivo, nome_arquivo)
+        data = response.json()
+        scroll_id = data.get("scroll_id")
+        results = data.get("results", [])
 
-    except Exception as e:
-        print(f"❌ Erro durante execução: {e}")
-
-    finally:
-        if os.path.exists(estado_path):
-            os.remove(estado_path)
-            print("🔓 lock_status.json removido")
-        print(f"✅ Fim da extração em {datetime.now().isoformat()}")
+    salvar_dados(anuncios_coletados, "ativos_parciais_completos.json")
+    salvar_lock_status(scroll_id, coletados, datetime.now().isoformat(), em_execucao=False)
+    print(f"✅ Extração finalizada com {coletados} anúncios salvos.")
