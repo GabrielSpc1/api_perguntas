@@ -39,9 +39,14 @@ def executar_extracao_ativos():
                 params["scroll_id"] = scroll_id
 
             url = f"https://api.mercadolibre.com/users/{user_id}/items/search"
-            response = requests.get(url, headers=headers, params=params)
-            if response.status_code != 200:
-                print(f"❌ Erro {response.status_code}: {response.text}")
+            try:
+                response = requests.get(url, headers=headers, params=params, timeout=30)
+                response.raise_for_status()
+            except requests.exceptions.Timeout:
+                print(f"⏰ Timeout na requisição SCAN (scroll_id={scroll_id}). Abortando.")
+                break
+            except Exception as e:
+                print(f"❌ Erro durante SCAN: {e}")
                 break
 
             data = response.json()
@@ -49,6 +54,7 @@ def executar_extracao_ativos():
             scroll_id = data.get("scroll_id")
 
             if not ids:
+                print(f"🛑 Fim do loop SCAN: último scroll_id = {scroll_id}")
                 break
 
             all_ids.extend(ids)
@@ -56,16 +62,18 @@ def executar_extracao_ativos():
             time.sleep(0.1)
 
         print(f"✅ Coleta finalizada com {len(all_ids)} IDs únicos.")
-        
+
         detalhes = []
         for i, item_id in enumerate(all_ids):
             try:
-                r = requests.get(f"https://api.mercadolibre.com/items/{item_id}", headers=headers)
+                r = requests.get(f"https://api.mercadolibre.com/items/{item_id}", headers=headers, timeout=30)
                 r.raise_for_status()
                 detalhes.append(r.json())
                 if i % 50 == 0:
                     print(f"🔍 Detalhado {i}/{len(all_ids)} anúncios.")
                 time.sleep(0.2)
+            except requests.exceptions.Timeout:
+                print(f"⏰ Timeout ao detalhar {item_id}. Pulando...")
             except Exception as e:
                 print(f"❌ Erro ao detalhar {item_id}: {e}")
 
@@ -74,40 +82,10 @@ def executar_extracao_ativos():
         upload_github(nome_arquivo, nome_arquivo)
 
     except Exception as e:
-        print(f"❌ Erro durante execução: {e}")
+        print(f"❌ Erro inesperado durante execução: {e}")
 
     finally:
         if os.path.exists("lock_ativos.txt"):
             os.remove("lock_ativos.txt")
             print("🔓 Lock removido")
         print(f"✅ Fim da extração em {datetime.now().isoformat()}")
-
-
-def salvar_jsonl(dados, nome_arquivo):
-    with open(nome_arquivo, "w", encoding="utf-8") as f:
-        for item in dados:
-            json.dump(item, f, ensure_ascii=False)
-            f.write("\n")
-
-def upload_github(nome_arquivo_local, nome_arquivo_remoto):
-    g = Github(GITHUB_TOKEN)
-    repo = g.get_repo(REPO_NAME)
-    with open(nome_arquivo_local, "r", encoding="utf-8") as f:
-        conteudo = f.read()
-
-    try:
-        arq = repo.get_contents(nome_arquivo_remoto, ref="main")
-        repo.update_file(
-            nome_arquivo_remoto,
-            f"update {nome_arquivo_remoto} {datetime.now().isoformat()}",
-            conteudo,
-            arq.sha,
-            branch="main"
-        )
-    except:
-        repo.create_file(
-            nome_arquivo_remoto,
-            f"create {nome_arquivo_remoto} {datetime.now().isoformat()}",
-            conteudo,
-            branch="main"
-        )
