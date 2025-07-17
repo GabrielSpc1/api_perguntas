@@ -24,6 +24,8 @@ def extrair_anuncios_ativos():
     access_token = renovar_token()
     print(f"✅ Token obtido: {access_token[:10]}...")
 
+    headers = {"Authorization": f"Bearer {access_token}"}  # <-- ESTA LINHA FALTAVA
+
     try:
         print("🔍 Buscando user_id...")
         user_id = buscar_user_id(access_token)
