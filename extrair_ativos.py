@@ -1,59 +1,53 @@
 import os
-import time
 import json
 import requests
-from github import Github
+import time
 from datetime import datetime
-from utils_meli import renovar_token, buscar_user_id
+from utils_meli import renovar_token, buscar_user_id, salvar_jsonl, upload_github
 
-GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
-REPO_NAME = "GabrielSpc1/api_perguntas"
+LOCK_FILE = "lock_ativos.txt"
+STATUS_FILE = "lock_status.json"
 
-def is_locked_remotamente():
-    g = Github(GITHUB_TOKEN)
-    repo = g.get_repo(REPO_NAME)
-    try:
-        file = repo.get_contents("lock_status.json", ref="main")
-        content = json.loads(file.decoded_content.decode())
-        return content.get("em_execucao", False)
-    except:
-        return False
+def carregar_status():
+    if os.path.exists(STATUS_FILE):
+        with open(STATUS_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    return {"scroll_id": None, "coletados": 0, "timestamp_inicio": datetime.now().isoformat()}
 
-def set_lock_remoto(valor: bool):
-    g = Github(GITHUB_TOKEN)
-    repo = g.get_repo(REPO_NAME)
-    content = json.dumps({"em_execucao": valor})
-    try:
-        arq = repo.get_contents("lock_status.json", ref="main")
-        repo.update_file("lock_status.json", f"update lock {datetime.now().isoformat()}", content, arq.sha, branch="main")
-    except:
-        repo.create_file("lock_status.json", f"create lock {datetime.now().isoformat()}", content, branch="main")
+def salvar_status(status):
+    with open(STATUS_FILE, "w", encoding="utf-8") as f:
+        json.dump(status, f, indent=2, ensure_ascii=False)
+
+def remover_arquivos_de_controle():
+    if os.path.exists(LOCK_FILE):
+        os.remove(LOCK_FILE)
+    if os.path.exists(STATUS_FILE):
+        os.remove(STATUS_FILE)
 
 def executar_extracao_ativos():
-    if is_locked_remotamente():
-        print("🚫 Extração já em execução (lock remoto GitHub). Abortando.")
+    if os.path.exists(LOCK_FILE):
+        print("🚫 Já em execução. Abortando nova tentativa.")
         return
 
-    set_lock_remoto(True)
+    with open(LOCK_FILE, "w") as f:
+        f.write("locked")
+
     print(f"🟢 Início da extração em {datetime.now().isoformat()}")
-    start_time = time.time()
 
     try:
+        status = carregar_status()
+        scroll_id = status.get("scroll_id")
+        all_ids = []
+        coletados_anteriores = status.get("coletados", 0)
+
         token = renovar_token()
         user_id = buscar_user_id(token)
         headers = {"Authorization": f"Bearer {token}"}
-
         limit = 100
-        scroll_id = None
-        all_ids = []
 
         print("🚀 Iniciando extração com SCAN + scroll_id...")
 
         while True:
-            if time.time() - start_time > 900:
-                print("⏱️ Tempo máximo de execução atingido (15 minutos). Abortando.")
-                break
-
             params = {
                 "status": "active",
                 "search_type": "scan",
@@ -62,16 +56,11 @@ def executar_extracao_ativos():
             if scroll_id:
                 params["scroll_id"] = scroll_id
 
-            try:
-                response = requests.get(
-                    f"https://api.mercadolibre.com/users/{user_id}/items/search",
-                    headers=headers,
-                    params=params,
-                    timeout=30
-                )
-                response.raise_for_status()
-            except Exception as e:
-                print(f"❌ Erro na requisição SCAN: {e}")
+            url = f"https://api.mercadolibre.com/users/{user_id}/items/search"
+            response = requests.get(url, headers=headers, params=params)
+
+            if response.status_code != 200:
+                print(f"❌ Erro {response.status_code}: {response.text}")
                 break
 
             data = response.json()
@@ -79,23 +68,22 @@ def executar_extracao_ativos():
             scroll_id = data.get("scroll_id")
 
             if not ids:
-                print(f"🛑 Fim do loop SCAN: último scroll_id = {scroll_id}")
+                print("✅ Finalizado. Nenhum ID restante.")
                 break
 
             all_ids.extend(ids)
-            print(f"📦 Coletados até agora: {len(all_ids)} anúncios ativos...")
+            status["scroll_id"] = scroll_id
+            status["coletados"] = coletados_anteriores + len(all_ids)
+            salvar_status(status)
 
-            # Salva progresso parcial
-            with open("progresso_parcial.json", "w", encoding="utf-8") as f:
-                json.dump({"ids": all_ids, "scroll_id": scroll_id}, f, ensure_ascii=False)
-
+            print(f"📦 Coletados até agora: {status['coletados']} anúncios ativos...")
             time.sleep(0.1)
 
-        print(f"✅ Coleta finalizada com {len(all_ids)} IDs únicos.")
+        print(f"🔍 Iniciando detalhamento de {len(all_ids)} anúncios coletados nesta sessão...")
         detalhes = []
         for i, item_id in enumerate(all_ids):
             try:
-                r = requests.get(f"https://api.mercadolibre.com/items/{item_id}", headers=headers, timeout=30)
+                r = requests.get(f"https://api.mercadolibre.com/items/{item_id}", headers=headers)
                 r.raise_for_status()
                 detalhes.append(r.json())
                 if i % 50 == 0:
@@ -105,26 +93,11 @@ def executar_extracao_ativos():
                 print(f"❌ Erro ao detalhar {item_id}: {e}")
 
         nome_arquivo = f"ativos_{datetime.now().strftime('%Y%m%d_%H%M%S')}.jsonl"
-        with open(nome_arquivo, "w", encoding="utf-8") as f:
-            for item in detalhes:
-                json.dump(item, f, ensure_ascii=False)
-                f.write("\n")
-
-        # Upload GitHub
-        g = Github(GITHUB_TOKEN)
-        repo = g.get_repo(REPO_NAME)
-        with open(nome_arquivo, "r", encoding="utf-8") as f:
-            conteudo = f.read()
-        try:
-            arq = repo.get_contents(nome_arquivo, ref="main")
-            repo.update_file(nome_arquivo, f"update {nome_arquivo} {datetime.now().isoformat()}", conteudo, arq.sha, branch="main")
-        except:
-            repo.create_file(nome_arquivo, f"create {nome_arquivo} {datetime.now().isoformat()}", conteudo, branch="main")
+        salvar_jsonl(detalhes, nome_arquivo)
+        upload_github(nome_arquivo, nome_arquivo)
 
     except Exception as e:
-        print(f"❌ Erro inesperado durante execução: {e}")
-
+        print(f"❌ Erro durante execução: {e}")
     finally:
-        set_lock_remoto(False)
-        print(f"🔓 Lock removido (remoto)")
+        remover_arquivos_de_controle()
         print(f"✅ Fim da extração em {datetime.now().isoformat()}")
