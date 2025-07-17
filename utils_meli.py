@@ -28,14 +28,13 @@ def buscar_user_id(token):
     response = requests.get(url, headers=headers)
     return response.json()["id"]
 
-def buscar_anuncios(user_id, token, status, offset, limit):
+def buscar_anuncios(user_id, token, status, offset=0, limit=100): 
     url = f"https://api.mercadolibre.com/users/{user_id}/items/search"
     headers = {"Authorization": f"Bearer {token}"}
     anuncios = []
 
     params = {
         "status": status,
-        "search_type": "scan",
         "offset": offset,
         "limit": limit
     }
@@ -46,6 +45,7 @@ def buscar_anuncios(user_id, token, status, offset, limit):
     print(f"[INFO] Coletados {len(anuncios)} anúncios com offset {offset}...")
 
     return anuncios
+
 
 def detalhar_anuncio(item_id, token):
     url = f"https://api.mercadolibre.com/items/{item_id}"
