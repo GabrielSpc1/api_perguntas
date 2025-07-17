@@ -28,7 +28,7 @@ def buscar_user_id(token):
     response = requests.get(url, headers=headers)
     return response.json()["id"]
 
-def buscar_anuncios(user_id, token, status, offset=0, limit=100):
+def buscar_anuncios(user_id, token, status, offset, limit):
     url = f"https://api.mercadolibre.com/users/{user_id}/items/search"
     headers = {"Authorization": f"Bearer {token}"}
     anuncios = []
