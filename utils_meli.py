@@ -28,22 +28,22 @@ def buscar_user_id(token):
     response = requests.get(url, headers=headers)
     return response.json()["id"]
 
-def buscar_anuncios(user_id, token, status):
-    url = f"https://api.mercadolibre.com/users/{user_id}/items/search?status={status}&search_type=scan&limit=100"
+def buscar_anuncios(user_id, token, status, offset=0, limit=100):
+    url = f"https://api.mercadolibre.com/users/{user_id}/items/search"
     headers = {"Authorization": f"Bearer {token}"}
     anuncios = []
-    scroll_id = None
 
-    while True:
-        final_url = url + (f"&scroll_id={scroll_id}" if scroll_id else "")
-        response = requests.get(final_url, headers=headers)
-        data = response.json()
-        anuncios.extend(data.get("results", []))
-        scroll_id = data.get("scroll_id")
-        print(f"[INFO] Coletados até agora: {len(anuncios)} anúncios ativos...")
-        
-        if not data.get("results"):
-            break
+    params = {
+        "status": status,
+        "search_type": "scan",
+        "offset": offset,
+        "limit": limit
+    }
+
+    response = requests.get(url, headers=headers, params=params)
+    data = response.json()
+    anuncios.extend(data.get("results", []))
+    print(f"[INFO] Coletados {len(anuncios)} anúncios com offset {offset}...")
 
     return anuncios
 
@@ -71,10 +71,10 @@ def upload_github(nome_arquivo_local, nome_arquivo_remoto):
     except:
         repo.create_file(nome_arquivo_remoto, f"create {nome_arquivo_remoto} {datetime.now().isoformat()}", conteudo, branch="main")
 
-def extrair_por_status(status, nome_arquivo):
+def extrair_por_status(status, nome_arquivo, offset=0, limit=100):
     token = renovar_token()
     user_id = buscar_user_id(token)
-    ids = buscar_anuncios(user_id, token, status)
+    ids = buscar_anuncios(user_id, token, status, offset, limit)
     detalhes = [detalhar_anuncio(anuncio_id, token) for anuncio_id in ids]
     salvar_jsonl(detalhes, nome_arquivo)
     upload_github(nome_arquivo, nome_arquivo)
