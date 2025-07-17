@@ -20,12 +20,14 @@ def extrair_anuncios_ativos():
         return
 
     salvar_lock_status(scroll_id=None, total_coletado=0, timestamp=datetime.now().isoformat(), em_execucao=True)
-
+    print("🔄 Renovando token...")
     token = renovar_token()
+    print(f"✅ Token obtido: {access_token[:10]}...")
     headers = {"Authorization": f"Bearer {token}"}
 
     try:
-        user_id = buscar_user_id(token)
+        user_id = buscar_user_id(access_token)
+        print(f"✅ user_id: {user_id}")
     except Exception as e:
         print(f"❌ Erro ao buscar user_id: {str(e)}")
         salvar_lock_status(None, 0, datetime.now().isoformat(), em_execucao=False)
