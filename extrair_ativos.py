@@ -1,10 +1,9 @@
-import requests
 import time
 import json
 from datetime import datetime
 from helpers import salvar_dados, salvar_lock_status, carregar_lock_status
+from utils_meli import renovar_token, buscar_user_id
 
-ACCESS_TOKEN = "SEU_ACCESS_TOKEN"
 BASE_URL = "https://api.mercadolibre.com/users/{user_id}/items/search"
 DETAIL_URL_TEMPLATE = "https://api.mercadolibre.com/items?ids={ids}"
 LIMITE_TOTAL = 30000
@@ -21,16 +20,16 @@ def extrair_anuncios_ativos():
 
     salvar_lock_status(scroll_id=None, total_coletado=0, timestamp=datetime.now().isoformat(), em_execucao=True)
 
-    headers = {"Authorization": f"Bearer {ACCESS_TOKEN}"}
+    token = renovar_token()
+    headers = {"Authorization": f"Bearer {token}"}
 
-    # Obter user_id
-    resp_user = requests.get("https://api.mercadolibre.com/users/me", headers=headers)
-    if resp_user.status_code != 200:
-        print(f"❌ Erro ao buscar user_id: {resp_user.text}")
+    try:
+        user_id = buscar_user_id(token)
+    except Exception as e:
+        print(f"❌ Erro ao buscar user_id: {str(e)}")
         salvar_lock_status(None, 0, datetime.now().isoformat(), em_execucao=False)
         return
 
-    user_id = resp_user.json().get("id")
     offset = 0
     coletados = 0
     anuncios_coletados = []
@@ -76,6 +75,7 @@ def extrair_anuncios_ativos():
     salvar_dados(anuncios_coletados, "ativos_parciais_completos.json")
     salvar_lock_status(None, coletados, datetime.now().isoformat(), em_execucao=False)
     print(f"✅ Extração finalizada com {coletados} anúncios salvos.")
+
 
 def executar_extracao_ativos():
     extrair_anuncios_ativos()
