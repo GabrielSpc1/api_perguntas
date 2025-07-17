@@ -14,38 +14,54 @@ def executar_extracao_ativos():
     user_id = buscar_user_id(token)
     headers = {"Authorization": f"Bearer {token}"}
 
-    offset = 0
-    limit = 50
-    todos_detalhes = []
+    limit = 100
+    scroll_id = None
+    all_ids = []
+
+    print("🚀 Iniciando extração com SCAN + scroll_id...")
 
     while True:
-        url = f"https://api.mercadolibre.com/users/{user_id}/items/search?status=active&offset={offset}&limit={limit}"
-        response = requests.get(url, headers=headers)
-        response.raise_for_status()
-        data = response.json()
+        params = {
+            "status": "active",
+            "search_type": "scan",
+            "limit": limit
+        }
+        if scroll_id:
+            params["scroll_id"] = scroll_id
 
+        url = f"https://api.mercadolibre.com/users/{user_id}/items/search"
+        response = requests.get(url, headers=headers, params=params)
+        if response.status_code != 200:
+            print(f"❌ Erro {response.status_code}: {response.text}")
+            break
+
+        data = response.json()
         ids = data.get("results", [])
-        print(f"🔄 Offset {offset} | Itens recebidos: {len(ids)}")
+        scroll_id = data.get("scroll_id")
 
         if not ids:
             break
 
-        for i, item_id in enumerate(ids):
-            try:
-                r = requests.get(f"https://api.mercadolibre.com/items/{item_id}", headers=headers)
-                r.raise_for_status()
-                todos_detalhes.append(r.json())
-                time.sleep(0.2)
-            except Exception as e:
-                print(f"❌ Erro ao detalhar {item_id}: {e}")
+        all_ids.extend(ids)
+        print(f"📦 Coletados até agora: {len(all_ids)} anúncios ativos...")
+        time.sleep(0.1)
 
-        if len(ids) < limit:
-            break
-
-        offset += limit
+    print(f"✅ Coleta finalizada com {len(all_ids)} IDs únicos.")
+    
+    detalhes = []
+    for i, item_id in enumerate(all_ids):
+        try:
+            r = requests.get(f"https://api.mercadolibre.com/items/{item_id}", headers=headers)
+            r.raise_for_status()
+            detalhes.append(r.json())
+            if i % 50 == 0:
+                print(f"🔍 Detalhado {i}/{len(all_ids)} anúncios.")
+            time.sleep(0.2)
+        except Exception as e:
+            print(f"❌ Erro ao detalhar {item_id}: {e}")
 
     nome_arquivo = "ativos_completos.jsonl"
-    salvar_jsonl(todos_detalhes, nome_arquivo)
+    salvar_jsonl(detalhes, nome_arquivo)
     upload_github(nome_arquivo, nome_arquivo)
 
 def salvar_jsonl(dados, nome_arquivo):
