@@ -10,6 +10,12 @@ GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
 REPO_NAME = "GabrielSpc1/api_perguntas"
 
 def executar_extracao_ativos():
+    if os.path.exists("lock_ativos.txt"):
+        print("🚫 Já em execução. Abortando nova tentativa.")
+        return
+    with open("lock_ativos.txt", "w") as f:
+        f.write("locked")
+
     token = renovar_token()
     user_id = buscar_user_id(token)
     headers = {"Authorization": f"Bearer {token}"}
@@ -63,6 +69,8 @@ def executar_extracao_ativos():
     nome_arquivo = "ativos_completos.jsonl"
     salvar_jsonl(detalhes, nome_arquivo)
     upload_github(nome_arquivo, nome_arquivo)
+    
+    os.remove("lock_ativos.txt")
 
 def salvar_jsonl(dados, nome_arquivo):
     with open(nome_arquivo, "w", encoding="utf-8") as f:
