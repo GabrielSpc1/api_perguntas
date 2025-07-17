@@ -12,10 +12,10 @@ def raiz():
     return {"mensagem": "API de extração Mercado Livre ativa."}
 
 @app.get("/extrair-ativos")
-def ativos(offset: int = Query(0), limit: int = Query(1000)):
+def ativos(offset: int = 0, limit: int = 500):
     try:
         executar_extracao_ativos(offset=offset, limit=limit)
-        return {"status": "sucesso", "mensagem": f"Ativos extraídos com offset={offset} e limit={limit}"}
+        return {"status": "sucesso", "mensagem": f"Ativos extraídos com sucesso (offset={offset}, limit={limit})"}
     except Exception as e:
         return {"status": "erro", "mensagem": str(e)}
 
