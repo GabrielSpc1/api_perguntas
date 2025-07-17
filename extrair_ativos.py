@@ -4,6 +4,8 @@ import json
 from github import Github
 from datetime import datetime
 from utils_meli import renovar_token, buscar_user_id, detalhar_anuncio
+import requests
+
 
 GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
 REPO_NAME = "GabrielSpc1/api_perguntas"
