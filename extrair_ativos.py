@@ -1,49 +1,42 @@
 import os
 import json
-import requests
 import time
 from datetime import datetime
+import requests
 from utils_meli import renovar_token, buscar_user_id, salvar_jsonl, upload_github
 
-LOCK_FILE = "lock_ativos.txt"
-STATUS_FILE = "lock_status.json"
-
-def carregar_status():
-    if os.path.exists(STATUS_FILE):
-        with open(STATUS_FILE, "r", encoding="utf-8") as f:
-            return json.load(f)
-    return {"scroll_id": None, "coletados": 0, "timestamp_inicio": datetime.now().isoformat()}
-
-def salvar_status(status):
-    with open(STATUS_FILE, "w", encoding="utf-8") as f:
-        json.dump(status, f, indent=2, ensure_ascii=False)
-
-def remover_arquivos_de_controle():
-    if os.path.exists(LOCK_FILE):
-        os.remove(LOCK_FILE)
-    if os.path.exists(STATUS_FILE):
-        os.remove(STATUS_FILE)
-
 def executar_extracao_ativos():
-    if os.path.exists(LOCK_FILE):
-        print("🚫 Já em execução. Abortando nova tentativa.")
-        return
+    # Carrega estado anterior (se existir)
+    estado_path = "lock_status.json"
+    estado = {}
+    if os.path.exists(estado_path):
+        with open(estado_path, "r") as f:
+            estado = json.load(f)
+        if estado.get("em_execucao"):
+            print("🚫 Já em execução. Abortando nova tentativa.")
+            return
 
-    with open(LOCK_FILE, "w") as f:
-        f.write("locked")
+    # Atualiza estado para em execução
+    estado = {
+        "em_execucao": True,
+        "scroll_id": estado.get("scroll_id"),
+        "coletados": estado.get("coletados", 0),
+        "timestamp_inicio": datetime.now().isoformat()
+    }
+    with open(estado_path, "w") as f:
+        json.dump(estado, f)
 
-    print(f"🟢 Início da extração em {datetime.now().isoformat()}")
+    print(f"🟢 Início da extração em {estado['timestamp_inicio']}")
 
     try:
-        status = carregar_status()
-        scroll_id = status.get("scroll_id")
-        all_ids = []
-        coletados_anteriores = status.get("coletados", 0)
-
         token = renovar_token()
         user_id = buscar_user_id(token)
         headers = {"Authorization": f"Bearer {token}"}
+
         limit = 100
+        scroll_id = estado.get("scroll_id")
+        coletados = estado.get("coletados", 0)
+        all_ids = []
 
         print("🚀 Iniciando extração com SCAN + scroll_id...")
 
@@ -58,7 +51,6 @@ def executar_extracao_ativos():
 
             url = f"https://api.mercadolibre.com/users/{user_id}/items/search"
             response = requests.get(url, headers=headers, params=params)
-
             if response.status_code != 200:
                 print(f"❌ Erro {response.status_code}: {response.text}")
                 break
@@ -68,18 +60,28 @@ def executar_extracao_ativos():
             scroll_id = data.get("scroll_id")
 
             if not ids:
-                print("✅ Finalizado. Nenhum ID restante.")
                 break
 
             all_ids.extend(ids)
-            status["scroll_id"] = scroll_id
-            status["coletados"] = coletados_anteriores + len(all_ids)
-            salvar_status(status)
+            coletados += len(ids)
 
-            print(f"📦 Coletados até agora: {status['coletados']} anúncios ativos...")
+            print(f"📦 Coletados até agora: {coletados} anúncios ativos...")
+
+            # Atualiza checkpoint a cada 10.000
+            if coletados % 10000 < limit:
+                estado.update({
+                    "scroll_id": scroll_id,
+                    "coletados": coletados,
+                    "timestamp_checkpoint": datetime.now().isoformat()
+                })
+                with open(estado_path, "w") as f:
+                    json.dump(estado, f)
+
             time.sleep(0.1)
 
-        print(f"🔍 Iniciando detalhamento de {len(all_ids)} anúncios coletados nesta sessão...")
+        print(f"✅ Coleta finalizada com {coletados} IDs únicos.")
+
+        # Detalhamento
         detalhes = []
         for i, item_id in enumerate(all_ids):
             try:
@@ -98,6 +100,9 @@ def executar_extracao_ativos():
 
     except Exception as e:
         print(f"❌ Erro durante execução: {e}")
+
     finally:
-        remover_arquivos_de_controle()
+        if os.path.exists(estado_path):
+            os.remove(estado_path)
+            print("🔓 lock_status.json removido")
         print(f"✅ Fim da extração em {datetime.now().isoformat()}")
