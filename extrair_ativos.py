@@ -66,7 +66,7 @@ def executar_extracao_ativos():
         except Exception as e:
             print(f"❌ Erro ao detalhar {item_id}: {e}")
 
-    nome_arquivo = "ativos_completos.jsonl"
+    nome_arquivo = f"ativos_{datetime.now().strftime('%Y%m%d_%H%M%S')}.jsonl"
     salvar_jsonl(detalhes, nome_arquivo)
     upload_github(nome_arquivo, nome_arquivo)
     
