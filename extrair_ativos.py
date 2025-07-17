@@ -5,9 +5,10 @@ from datetime import datetime
 from helpers import salvar_dados, salvar_lock_status, carregar_lock_status
 
 ACCESS_TOKEN = "SEU_ACCESS_TOKEN"
-SCROLL_URL = "https://api.mercadolibre.com/users/me/search?search_type=scan"
+BASE_URL = "https://api.mercadolibre.com/users/{user_id}/items/search"
 DETAIL_URL_TEMPLATE = "https://api.mercadolibre.com/items?ids={ids}"
 LIMITE_TOTAL = 30000
+PAGINA_LIMITE = 50
 
 
 def extrair_anuncios_ativos():
@@ -21,31 +22,41 @@ def extrair_anuncios_ativos():
     salvar_lock_status(scroll_id=None, total_coletado=0, timestamp=datetime.now().isoformat(), em_execucao=True)
 
     headers = {"Authorization": f"Bearer {ACCESS_TOKEN}"}
-    response = requests.get(SCROLL_URL, headers=headers)
-    response.raise_for_status()
-    data = response.json()
 
-    scroll_id = data.get("scroll_id")
-    results = data.get("results", [])
-    anuncios_coletados = []
+    # Obter user_id
+    resp_user = requests.get("https://api.mercadolibre.com/users/me", headers=headers)
+    if resp_user.status_code != 200:
+        print(f"❌ Erro ao buscar user_id: {resp_user.text}")
+        salvar_lock_status(None, 0, datetime.now().isoformat(), em_execucao=False)
+        return
+
+    user_id = resp_user.json().get("id")
+    offset = 0
     coletados = 0
+    anuncios_coletados = []
 
-    print("🚀 Iniciando extração com SCAN + scroll_id...")
+    print("🚀 Iniciando extração com paginação segura...")
 
-    while True:
+    while coletados < LIMITE_TOTAL:
+        url = f"{BASE_URL.format(user_id=user_id)}?status=active&offset={offset}&limit={PAGINA_LIMITE}"
+        resp = requests.get(url, headers=headers)
+        if resp.status_code != 200:
+            print(f"⚠️ Erro ao buscar página: {resp.text}")
+            break
+
+        results = resp.json().get("results", [])
         if not results:
+            print("✅ Nenhum resultado adicional. Fim da extração.")
             break
 
         ids_lote = ",".join(results)
         detalhes_url = DETAIL_URL_TEMPLATE.format(ids=ids_lote)
         detalhes_resp = requests.get(detalhes_url, headers=headers)
-
         if detalhes_resp.status_code != 200:
             print(f"⚠️ Erro ao buscar detalhes: {detalhes_resp.text}")
             break
 
         detalhes = detalhes_resp.json()
-
         for item in detalhes:
             anuncio_detalhado = item.get("body", {})
             if anuncio_detalhado:
@@ -57,22 +68,13 @@ def extrair_anuncios_ativos():
 
                 if coletados >= LIMITE_TOTAL:
                     print(f"🚫 Limite de {LIMITE_TOTAL} atingido. Encerrando extração.")
-                    salvar_dados(anuncios_coletados, "ativos_parciais_completos.json")
-                    salvar_lock_status(scroll_id, coletados, datetime.now().isoformat(), em_execucao=False)
-                    return
+                    break
 
+        offset += PAGINA_LIMITE
         time.sleep(0.5)
-        response = requests.get(f"{SCROLL_URL}&scroll_id={scroll_id}", headers=headers)
-        if response.status_code != 200:
-            print(f"⚠️ Erro no scroll: {response.text}")
-            break
-
-        data = response.json()
-        scroll_id = data.get("scroll_id")
-        results = data.get("results", [])
 
     salvar_dados(anuncios_coletados, "ativos_parciais_completos.json")
-    salvar_lock_status(scroll_id, coletados, datetime.now().isoformat(), em_execucao=False)
+    salvar_lock_status(None, coletados, datetime.now().isoformat(), em_execucao=False)
     print(f"✅ Extração finalizada com {coletados} anúncios salvos.")
 
 def executar_extracao_ativos():
