@@ -74,3 +74,6 @@ def extrair_anuncios_ativos():
     salvar_dados(anuncios_coletados, "ativos_parciais_completos.json")
     salvar_lock_status(scroll_id, coletados, datetime.now().isoformat(), em_execucao=False)
     print(f"✅ Extração finalizada com {coletados} anúncios salvos.")
+
+def executar_extracao_ativos():
+    extrair_anuncios_ativos()
