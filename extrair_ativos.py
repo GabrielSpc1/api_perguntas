@@ -10,22 +10,22 @@ DETAIL_URL_TEMPLATE = "https://api.mercadolibre.com/items?ids={ids}"
 LIMITE_TOTAL = 30000
 PAGINA_LIMITE = 50
 
-
 def extrair_anuncios_ativos():
     print(f"🟢 Início da extração em {datetime.now().isoformat()}")
-    lock_status = carregar_lock_status()
 
+    lock_status = carregar_lock_status()
     if lock_status.get("em_execucao"):
         print("🚫 Já em execução. Abortando nova tentativa.")
         return
 
     salvar_lock_status(scroll_id=None, total_coletado=0, timestamp=datetime.now().isoformat(), em_execucao=True)
+
     print("🔄 Renovando token...")
-    token = renovar_token()
+    access_token = renovar_token()
     print(f"✅ Token obtido: {access_token[:10]}...")
-    headers = {"Authorization": f"Bearer {token}"}
 
     try:
+        print("🔍 Buscando user_id...")
         user_id = buscar_user_id(access_token)
         print(f"✅ user_id: {user_id}")
     except Exception as e:
