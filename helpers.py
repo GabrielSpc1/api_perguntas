@@ -18,6 +18,19 @@ def salvar_lock_status(scroll_id, total_coletado, timestamp, em_execucao):
 def carregar_lock_status():
     try:
         with open("lock_status.json", "r", encoding="utf-8") as f:
-            return json.load(f)
+            status = json.load(f)
+            # Garante que todos os campos esperados existam
+            return {
+                "scroll_id": status.get("scroll_id"),
+                "total_coletado": status.get("total_coletado", 0),
+                "timestamp": status.get("timestamp", datetime.now().isoformat()),
+                "em_execucao": status.get("em_execucao", False)
+            }
     except FileNotFoundError:
-        return {"em_execucao": False}
+        return {
+            "scroll_id": None,
+            "total_coletado": 0,
+            "timestamp": datetime.now().isoformat(),
+            "em_execucao": False
+        }
+
