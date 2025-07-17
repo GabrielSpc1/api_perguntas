@@ -3,6 +3,7 @@ import json
 from datetime import datetime
 from helpers import salvar_dados, salvar_lock_status, carregar_lock_status
 from utils_meli import renovar_token, buscar_user_id
+import requests
 
 BASE_URL = "https://api.mercadolibre.com/users/{user_id}/items/search"
 DETAIL_URL_TEMPLATE = "https://api.mercadolibre.com/items?ids={ids}"
