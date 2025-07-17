@@ -69,3 +69,4 @@ def executar_extracao_ativos(offset=0, limit=1000):
     nome_arquivo = f"ativos_offset{offset}.jsonl"
     salvar_jsonl(detalhes, nome_arquivo)
     upload_github(nome_arquivo, nome_arquivo)
+
