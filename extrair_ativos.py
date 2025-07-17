@@ -61,12 +61,10 @@ def upload_github(nome_arquivo_local, nome_arquivo_remoto):
     except:
         repo.create_file(nome_arquivo_remoto, f"create {nome_arquivo_remoto} {datetime.now().isoformat()}", conteudo, branch="main")
 
-def executar_extracao_ativos(offset=0, limit=1000):
-    token = renovar_token()
-    user_id = buscar_user_id(token)
-    ids = buscar_anuncios_por_offset(user_id, token, offset, limit)
-    detalhes = [detalhar_anuncio(anuncio_id, token) for anuncio_id in ids]
-    nome_arquivo = f"ativos_offset{offset}.jsonl"
-    salvar_jsonl(detalhes, nome_arquivo)
-    upload_github(nome_arquivo, nome_arquivo)
+from utils_meli import extrair_por_status
+
+def executar_extracao_ativos(offset=0, limit=500):
+    nome_arquivo = f"ativos_offset{offset}_limit{limit}.jsonl"
+    extrair_por_status("active", nome_arquivo, offset=offset, limit=limit)
+
 
