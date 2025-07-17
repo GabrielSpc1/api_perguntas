@@ -10,11 +10,25 @@ GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
 REPO_NAME = "GabrielSpc1/api_perguntas"
 
 def executar_extracao_ativos():
+
     if os.path.exists("lock_ativos.txt"):
         print("🚫 Já em execução. Abortando nova tentativa.")
         return
     with open("lock_ativos.txt", "w") as f:
         f.write("locked")
+
+    try:
+        # ... [todo seu código aqui] ...
+        pass  # <-- onde está sua lógica de coleta, detalhamento etc.
+
+    except Exception as e:
+        print(f"❌ Erro durante execução: {e}")
+    
+    finally:
+        if os.path.exists("lock_ativos.txt"):
+            os.remove("lock_ativos.txt")
+            print("🔓 Lock removido")
+
 
     token = renovar_token()
     user_id = buscar_user_id(token)
